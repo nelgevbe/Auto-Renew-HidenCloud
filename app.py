@@ -58,6 +58,43 @@ def get_current_ip(proxy_server=None):
         log(f"❌ 获取出口IP失败: {e}")
         return "获取失败"
 
+def handle_consent_dialog(page):
+    """鲁棒性更强的 Google 隐私弹窗处理函数"""
+    try:
+        # 1. 尝试在主页面及所有 Frame 中查找并点击 'Consent' 按钮
+        for target in [page] + page.frames:
+            try:
+                consent_btn = target.locator('.fc-cta-consent, button:has-text("Consent")').first
+                if consent_btn.is_visible(timeout=1000):
+                    log("🛡️ 检测到 Google 隐私弹窗，正在点击 'Consent'...")
+                    consent_btn.click(force=True)
+                    time.sleep(1.5)
+                    return True
+            except Exception:
+                continue
+
+        # 2. 如果点不到，直接通过 JS 强制移除整个弹窗根节点（包括其遮罩层）
+        removed = page.evaluate("""
+            () => {
+                const selectors = ['.fc-consent-root', '.fc-dialog-overlay', '#ncmp__tool', '.ncmp__banner-inner'];
+                let found = false;
+                selectors.forEach(selector => {
+                    document.querySelectorAll(selector).forEach(el => {
+                        el.remove();
+                        found = true;
+                    });
+                });
+                return found;
+            }
+        """)
+        if removed:
+            log("🧹 已强制清除隐私弹窗 DOM 节点")
+            time.sleep(0.5)
+            return True
+    except Exception as e:
+        pass
+    return False
+
 def send_telegram_notification(status, old_due, new_due, current_ip="未知"):
     """发送 Telegram 通知"""
     if not TG_BOT_TOKEN or not TG_CHAT_ID:
@@ -421,6 +458,7 @@ def login(page):
             handle_cloudflare(page, timeout=60)  # 跳转后可能再次出现验证页
             if _is_logged_in(page):
                 log(f"✅ Cookie 登录成功！当前已到达dashboard页面")
+                handle_consent_dialog(page)
                 return True
             log("❌ Cookie 失效，请更换")
         except Exception as e:
@@ -484,6 +522,7 @@ def login(page):
         if not _is_logged_in(page):
             log("❌ 登录失败。")
             return False
+        handle_consent_dialog(page)
         log(f"✅ 账号密码登录成功！当前已到达dashboard页面")
         return True
     except Exception as e:
@@ -563,7 +602,8 @@ def renew_service(page):
                 renew_btn.wait_for(state="visible", timeout=10000)
                 renew_btn.scroll_into_view_if_needed()
                 log(f"🖱️ 第 {i+1} 次尝试点击 'Renew'...")
-                renew_btn.click()
+                handle_consent_dialog(page)
+                renew_btn.click(force=True)
 
                 # 等待一小段时间，检测是否出现“未到续期时间”弹窗
                 time.sleep(3)
@@ -602,7 +642,8 @@ def renew_service(page):
             log(f"🖱️ 点击 'Create Invoice'（第 {attempt + 1} 次）...")
             try:
                 create_btn.wait_for(state="visible", timeout=20000)
-                create_btn.click(timeout=20000)
+                handle_consent_dialog(page)
+                create_btn.click(force=True, timeout=20000)
             except Exception as e:
                 log(f"⚠️ 点击 Create Invoice 失败: {e}")
                 solve_modal_turnstile(page, timeout=45)
