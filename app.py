@@ -593,6 +593,7 @@ def renew_service(page):
         handle_cloudflare(page)
 
         log("🖱️ 准备点击 Renew 按钮...")
+        time.sleep(3)
         renew_btn = page.locator('button:has-text("Renew")')
         create_btn = page.locator('button:has-text("Create Invoice")')
 
@@ -637,6 +638,7 @@ def renew_service(page):
             page.screenshot(path="turnstile_timeout.png")
 
         # 点击 Create Invoice；未跳转说明验证未通过/已过期，重做验证后再试
+        time.sleep(3)
         new_invoice_url = None
         for attempt in range(6):
             log(f"🖱️ 点击 'Create Invoice'（第 {attempt + 1} 次）...")
@@ -678,6 +680,7 @@ def renew_service(page):
         log("🔎 查找 Pay 按钮...")
         pay_btn = page.locator('a:has-text("Pay"):visible, button:has-text("Pay"):visible').first
         pay_btn.wait_for(state="visible", timeout=30000)
+        time.sleep(3)
         pay_btn.click()
         log("✅ Pay 按钮已点击")
 
