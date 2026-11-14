@@ -571,6 +571,7 @@ def discord_login(page):
         handle_cloudflare(page, timeout=60)  # 跳转后可能再次出现验证页
         if _is_logged_in(page, strict=True):
             log("✅ Discord OAuth 登录成功！已进入控制台")
+            handle_consent_dialog(page)
             return True
         log(f"❌ Discord OAuth 回调后未能进入控制台，当前URL: {page.url}")
         page.screenshot(path="discord_login_fail.png")
@@ -762,6 +763,7 @@ def renew_service(page):
                     renew_btn.wait_for(state="visible", timeout=10000)
                     renew_btn.scroll_into_view_if_needed()
                     log(f"🖱️ 第 {i+1} 次尝试点击 Renew...")
+                    handle_consent_dialog(page)
                     renew_btn.click()
                     time.sleep(3) # 等待一小段时间，检测是否出现“未到续期时间”弹窗
                     page_text = page.locator("body").inner_text()
@@ -802,6 +804,7 @@ def renew_service(page):
                 log(f"🖱️ 点击 Create Invoice（第 {attempt + 1} 次）...")
                 try:
                     create_btn.wait_for(state="visible", timeout=30000)
+                    handle_consent_dialog(page)
                     create_btn.click(timeout=20000)
                 except Exception as e:
                     log(f"⚠️ 点击 Create Invoice 失败: {e}")
